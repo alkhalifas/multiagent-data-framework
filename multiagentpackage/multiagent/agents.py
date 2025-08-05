@@ -40,9 +40,7 @@ try:
 
     try:
         # For LangChain >= 0.1.0 use the experimental pandas agent
-        from langchain_experimental.agents.agent_toolkits.pandas.base import (
-            create_pandas_dataframe_agent,
-        )  # type: ignore
+        from langchain_experimental.agents.agent_toolkits.pandas.base import create_pandas_dataframe_agent
     except ImportError:
         # Fallback to the legacy location for create_pandas_dataframe_agent
         from langchain.agents import create_pandas_dataframe_agent  # type: ignore
