@@ -27,13 +27,34 @@ from typing import Dict, List, Tuple
 import pandas as pd  # type: ignore
 
 try:
-    from langchain.chat_models import ChatOpenAI  # type: ignore
-    from langchain.agents import create_pandas_dataframe_agent  # type: ignore
+    # LangChain v0.1 and later have refactored chat models into the
+    # ``langchain_community`` package and moved experimental agents into
+    # ``langchain_experimental``. Attempt to import from the new locations
+    # first. Fall back to the legacy imports for backwards compatibility.
+    try:
+        from langchain_community.chat_models import ChatOpenAI  # type: ignore
+    except ImportError:
+        # Fallback for older versions of langchain where chat models were
+        # exposed directly under ``langchain.chat_models``
+        from langchain.chat_models import ChatOpenAI  # type: ignore
+
+    try:
+        # For LangChain >= 0.1.0 use the experimental pandas agent
+        from langchain_experimental.agents.agent_toolkits.pandas.base import (
+            create_pandas_dataframe_agent,
+        )  # type: ignore
+    except ImportError:
+        # Fallback to the legacy location for create_pandas_dataframe_agent
+        from langchain.agents import create_pandas_dataframe_agent  # type: ignore
+
+    # SystemMessage and HumanMessage have not moved between versions, but
+    # keep the import inside the try block to ensure langchain is available.
     from langchain.schema import SystemMessage, HumanMessage  # type: ignore
 except ImportError as exc:  # pragma: no cover
     raise ImportError(
-        "multiagent.agents requires the 'langchain' and 'openai' packages."
-        " Please install them using pip before using this module."
+        "multiagent.agents requires the 'langchain', 'langchain-community', "
+        "'langchain-experimental' and 'openai' packages. Please install them "
+        "using pip before using this module."
     ) from exc
 
 
