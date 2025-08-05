@@ -40,7 +40,9 @@ try:
 
     try:
         # For LangChain >= 0.1.0 use the experimental pandas agent
-        from langchain_experimental.agents.agent_toolkits.pandas.base import create_pandas_dataframe_agent
+        from langchain_experimental.agents.agent_toolkits.pandas.base import (
+            create_pandas_dataframe_agent,
+        )  # type: ignore
     except ImportError:
         # Fallback to the legacy location for create_pandas_dataframe_agent
         from langchain.agents import create_pandas_dataframe_agent  # type: ignore
@@ -71,88 +73,30 @@ class BaseDataAgent:
         return self.agent.run(query)
 
     def generate_trend_report(self) -> str:
-        df = self.dataframe.copy()
-        report_lines: List[str] = []
-        date_col = None
-        for col in df.columns:
-            if col.lower() == 'date':
-                date_col = col
-                break
-        if date_col is not None:
-            df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
-        numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
-        if date_col is not None and numeric_cols:
-            monthly = df.dropna(subset=[date_col])
-            if not monthly.empty:
-                monthly = monthly.groupby(monthly[date_col].dt.to_period('M'))[numeric_cols].sum()
-                if len(monthly) >= 2:
-                    last_two = monthly.tail(2)
-                    prev, current = last_two.iloc[0], last_two.iloc[1]
-                    delta = current - prev
-                    report_lines.append("Recent monthly trends:")
-                    for col in numeric_cols:
-                        change = delta[col]
-                        direction = "increased" if change > 0 else ("decreased" if change < 0 else "remained stable")
-                        percent = (change / prev[col] * 100) if prev[col] != 0 else None
-                        if percent is not None:
-                            report_lines.append(
-                                f"• {col}: {direction} by {abs(change):.2f} ({abs(percent):.1f}% compared to the previous month)."
-                            )
-                        else:
-                            report_lines.append(
-                                f"• {col}: {direction} by {abs(change):.2f}."
-                            )
-        name = self.name.lower()
-        if 'supply' in name:
-            if 'supplier_id' in df.columns and 'order_quantity' in df.columns:
-                top_supplier = df.groupby('supplier_id')['order_quantity'].sum().idxmax()
-                total_orders = df.groupby('supplier_id')['order_quantity'].sum().max()
-                report_lines.append(
-                    f"Top supplier by order quantity: {top_supplier} with {total_orders} units ordered in total."
-                )
-            if 'inventory_level' in df.columns:
-                avg_inventory = df['inventory_level'].mean()
-                report_lines.append(
-                    f"Average inventory level across all records: {avg_inventory:.1f} units."
-                )
-        elif 'manufacturing' in name:
-            if 'production_line' in df.columns and 'units_produced' in df.columns:
-                top_line = df.groupby('production_line')['units_produced'].sum().idxmax()
-                total_units = df.groupby('production_line')['units_produced'].sum().max()
-                report_lines.append(
-                    f"Production line with highest output: {top_line} producing {total_units} units in total."
-                )
-            if 'defect_rate' in df.columns:
-                avg_defect = df['defect_rate'].mean()
-                report_lines.append(
-                    f"Average defect rate: {avg_defect:.2%}."
-                )
-            if 'downtime_hours' in df.columns:
-                avg_downtime = df['downtime_hours'].mean()
-                report_lines.append(
-                    f"Average downtime: {avg_downtime:.1f} hours."
-                )
-        elif 'sales' in name:
-            if 'product' in df.columns and 'revenue' in df.columns:
-                top_product = df.groupby('product')['revenue'].sum().idxmax()
-                top_rev = df.groupby('product')['revenue'].sum().max()
-                report_lines.append(
-                    f"Top product by revenue: {top_product} generating ${top_rev:,.2f}."
-                )
-            if 'region' in df.columns and 'revenue' in df.columns:
-                top_region = df.groupby('region')['revenue'].sum().idxmax()
-                region_rev = df.groupby('region')['revenue'].sum().max()
-                report_lines.append(
-                    f"Top region by revenue: {top_region} with total sales of ${region_rev:,.2f}."
-                )
-            if 'quantity_sold' in df.columns:
-                avg_qty = df['quantity_sold'].mean()
-                report_lines.append(
-                    f"Average quantity sold per order: {avg_qty:.1f} units."
-                )
-        if not report_lines:
-            return "No trends could be derived from this dataset."
-        return "\n".join(report_lines)
+        """
+        Generate a dynamic trend report for this dataset by delegating analysis to the
+        underlying LangChain pandas agent.
+
+        This method formulates an open‑ended prompt asking the agent to analyse the
+        current DataFrame for trends, patterns, anomalies or inconsistencies. The
+        agent will consider temporal trends (if a date column exists), the distribution
+        of numerical columns and relationships between categorical variables. The
+        result is returned as a human‑readable summary. If the agent call fails for
+        any reason (e.g. network errors, API limits), the method falls back to a simple
+        message indicating that no insights could be generated.
+        """
+        analysis_prompt = (
+            "You are an expert data analyst. Analyse the dataset provided to you and "
+            "identify notable trends, patterns, anomalies or inconsistencies. "
+            "Consider temporal trends (if there is a date column), distribution of numeric columns, "
+            "and any interesting relationships across categorical columns. "
+            "Summarise your findings in a few concise bullet points."
+        )
+        try:
+            insights = self.agent.run(analysis_prompt)
+            return str(insights)
+        except Exception:
+            return "Unable to generate dynamic insights for this dataset."
 
 
 class MultiAgentManager:
