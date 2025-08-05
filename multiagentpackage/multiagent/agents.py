@@ -247,10 +247,30 @@ def create_default_agents() -> Tuple[MultiAgentManager, Dict[str, BaseDataAgent]
             )
         df = load_csv_dataset(str(path))
         dataframes[name] = df
+    # Attempt to read the OpenAI API key from the environment. If it isn't
+    # present, try to load it from a .env file located one directory up from
+    # this module (i.e. the package root). Users should copy the provided
+    # `.env` template and fill in their own key.
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
+        # Try to load from .env file manually without requiring python‑dotenv
+        try:
+            from pathlib import Path
+            env_path = Path(__file__).resolve().parents[1] / ".env"
+            if env_path.exists():
+                with env_path.open("r") as f:
+                    for line in f:
+                        if line.strip().startswith("OPENAI_API_KEY="):
+                            key_val = line.strip().split("=", 1)[1]
+                            openai_api_key = key_val.strip().strip('"').strip("'")
+                            # update environment for downstream users
+                            os.environ["OPENAI_API_KEY"] = openai_api_key
+                            break
+        except Exception:
+            pass
+    if not openai_api_key:
         raise EnvironmentError(
-            "The OPENAI_API_KEY environment variable must be set to use this module."
+            "Could not find OPENAI_API_KEY. Please set it in the environment or provide it in a .env file."
         )
     llm = ChatOpenAI(
         openai_api_key=openai_api_key,
