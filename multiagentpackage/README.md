@@ -29,11 +29,19 @@ pip install pandas streamlit langchain openai
 ```
 
 You also need an OpenAI API key. Sign up at <https://platform.openai.com/>,
-create a key and export it as an environment variable:
+create a key and supply it to the framework. There are two ways to do this:
 
-```bash
-export OPENAI_API_KEY="sk-..."
-```
+1. **Environment variable**: Export your key as `OPENAI_API_KEY`:
+
+   ```bash
+   export OPENAI_API_KEY="sk-..."
+   ```
+
+2. **`.env` file**: Copy the provided `.env` template in the repository root
+   (if it doesn’t already exist) and replace the placeholder value with your
+   actual key. The code will automatically read this file if the
+   `OPENAI_API_KEY` environment variable is not set. **Do not commit your
+   real API key to source control.**
 
 ## Usage
 
